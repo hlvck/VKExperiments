@@ -1,6 +1,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <optional>
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
@@ -61,17 +62,55 @@ class HelloTriangleApplication {
 		VkInstance instance;
 		VkDebugUtilsMessengerEXT debugMessenger;
 
+		struct QueueFamilyIndices {
+			std::optional<uint32_t> graphicsFamily;
+
+			bool isComplete() 
+			{
+				return graphicsFamily.has_value();
+			}
+		};
+
+		QueueFamilyIndices findQueueFamilies (VkPhysicalDevice device) {
+			QueueFamilyIndices indices;
+			uint32_t queueFamilyCount = 0;
+			vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+			std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+			vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+			int i = 0;
+			for (const auto& queueFamily : queueFamilies)
+			{
+				if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) 
+				{
+					indices.graphicsFamily = 1;
+				}
+
+				if (indices.isComplete()) 
+				{
+					break;
+				}
+
+				i++;
+			}
+			return indices;
+		}
+
 		bool checkValidationLayerSupport() {
 			uint32_t layerCount;
 			vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 			std::vector<VkLayerProperties> availableLayers(layerCount);
 			vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 			
-			for (const char* layerName : validationLayers) {
+			for (const char* layerName : validationLayers) 
+			{
 				bool layerFound = false;
 
-				for (const auto& layerProperties : availableLayers) {
-					if (strcmp(layerName, layerProperties.layerName) == 0) {
+				for (const auto& layerProperties : availableLayers) 
+				{
+					if (strcmp(layerName, layerProperties.layerName) == 0) 
+					{
 						layerFound = true;
 						break;
 					}
@@ -82,6 +121,7 @@ class HelloTriangleApplication {
 
 			return true;
 		}
+
 
 		std::vector<const char*> getRequiredExtensions() {
 			uint32_t glfwExtensionCount = 0;
@@ -170,7 +210,7 @@ class HelloTriangleApplication {
 				throw std::runtime_error("Failed to find GPUs with Vulkan support.");
 			}
 
-			std::vectir<VkPhysicalDevice> devices(deviceCount);
+			std::vector<VkPhysicalDevice> devices(deviceCount);
 			vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
 			for (const auto& device : devices) 
@@ -185,11 +225,14 @@ class HelloTriangleApplication {
 			if (physicalDevice == VK_NULL_HANDLE)
 			{
 				throw std::runtime_error("Failed to find a suitable GPU.");
+			}
 			
 		}
 
 		bool isDeviceSuitable(VkPhysicalDevice device) {
-			return true;
+			QueueFamilyIndices indices = findQueueFamilies(device);
+
+			return indices.isComplete();
 		}
 
 		void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
